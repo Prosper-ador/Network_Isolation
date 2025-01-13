@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Ensure the script is run as root
