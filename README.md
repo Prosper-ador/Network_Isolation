@@ -1,54 +1,142 @@
-Take a look on this **readme** file for this task
+Take a look on this **readme** file that explains the process, setup, and usage of the script and Docker containers for this task.
 
-# Docker Isolated Networking Setup with Network Namespaces and iptables
+---
 
-This project provides a solution to set up isolated networking environments using Docker, Linux network namespaces, and `iptables`. The goal is to simulate two isolated environments (e.g., "Team A" and "Team B") that can be selectively allowed to communicate via a bridge network.
+# **Docker Networking with Network Namespaces and IP Tables**
 
-## Requirements
+This task demonstrates how to create isolated networking environments for Docker containers using network namespaces and `iptables`. The containers will simulate two teams (Team A and Team B), each with their respective isolated networking environments. We'll use Docker, Linux networking tools, and `iptables` to ensure network isolation and selective communication.
 
-- Docker installed on a Linux system
-- `iptables` installed for network configuration
+## **Project Overview**
 
-## Features
+- **Team A** and **Team B** are created as Docker containers.
+- Containers are attached to an isolated Docker network, ensuring they start with dynamic IPs assigned by Docker.
+- Virtual Ethernet pairs (`veth`) are created and connected to the host’s bridge network (`br0`).
+- Network namespaces are used to enforce isolation between the two containers.
+- `iptables` is configured to allow selective communication. In this setup:
+  - **Team A** can communicate with **Team B**.
+  - **Team B** cannot communicate with **Team A** (one-way communication).
 
-1. Creates two Docker containers simulating isolated environments (Team A and Team B).
-2. Uses Linux network namespaces to isolate the containers.
-3. Sets up a bridge network for selective communication between containers.
-4. Uses `iptables` to control and restrict communication between containers.
-5. Provides a script to automate the entire setup process.
+---
 
-## Installation & Setup
+## **Project Structure**
 
-### 1. Install Docker (if not installed)
+- **Dockerfile**: Builds the Docker image for both Team A and Team B.
+- **setup_isolated_network.sh**: A Bash script to automate the entire setup process, including container creation, network configuration, and `iptables` setup.
+- **README.md**: Project documentation (this file).
 
-Ensure Docker is installed on your system. Follow these commands for installation:
+---
 
-**Ubuntu/Debian:**
+## **Prerequisites**
+
+Before running this project, ensure you have the following installed:
+
+- **Docker**: To build and run the containers.
+- **Linux (Ubuntu or similar)**: The script is designed to work on Linux systems.
+- **Root (sudo) privileges**: The script requires root access for setting up network configurations.
+- **iproute2 & iptables**: These are necessary tools for managing network namespaces and configuring firewall rules.
+
+To install Docker on Ubuntu, run:
+
 ```bash
 sudo apt update
-sudo apt install -y docker.io
-FIRSTLY
-Create 2 container all together with the network using the command 
-    docker run -d –name TEAM_A  --network team_A_network nginx
-    docker run -d –name TEAM_B  --network team_B_network nginx
-   we then create   a bridged network to allow controlled communication between the container
-    sudo ip link add br0 type bridge
-    sudo ip addr add 192.168.1.1/24 dev br0
-    sudo ip link set br0 up
- we now create 2 pairs of virtual ethernet  (veth)
-    sudo ip link add veth0 type veth peer name veth1
-    sudo ip link add veth2 type veth peer name veth3
- we then attach one end of each veth pair to the bridge
-    sudo ip link set veth0 master br0
-    sudo ip link set veth2 master br0
-    sudo ip link set veth0 up
-    sudo ip link set veth2 up
- then the other end of the each veth is then attached to the container
-    sudo ip link set veth1 netns $(docker inspect -f '{{.State.Pid}}' team_a)
-    sudo ip link set veth3 netns $(docker inspect -f '{{.State.Pid}}' team_b)
+sudo apt install docker.io
+```
 
- then we configure the ip addresses of the containers
-      sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' team_a) -n ip addr add 192.168.1.2/24 dev veth1
-    sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' team_a) -n ip link set veth1 up
-    sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' team_b) -n ip addr add 192.168.1.3/24 dev veth3
-    sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' team_b) -n ip link set veth3 up
+To install `iproute2` and `iptables`:
+
+```bash
+sudo apt-get update
+sudo apt-get install iproute2 iptables
+```
+
+---
+
+## **How to Build and Run**
+
+### **1. Build the Docker Images for Team A and Team B**
+
+1. Clone this repository or download the project files to your local machine.
+2. Open a terminal and navigate to the project directory.
+3. Build the Docker images for Team A and Team B using the Dockerfile.
+
+```bash
+# Build the image for Team A
+docker build --build-arg TEAM_NAME="Team A" -t team_a .
+
+# Build the image for Team B
+docker build --build-arg TEAM_NAME="Team B" -t team_b .
+```
+
+This will create two Docker images (`team_a` and `team_b`), each configured with basic networking tools like `ping`, `curl`, and `iptables`.
+
+### **2. Run the Setup Script**
+
+Once the Docker images are built, you can run the setup script to configure the network, create the containers, and set up the `iptables` rules.
+
+1. Make sure the script is executable:
+   ```bash
+   chmod +x setup_isolated_network.sh
+   ```
+
+2. Run the script with `sudo`:
+   ```bash
+   sudo ./setup_isolated_network.sh
+   ```
+
+### **What the Script Does:**
+
+- **Cleans Up Existing Resources**: The script stops and removes any pre-existing containers, networks, or interfaces.
+- **Creates Docker Containers**: It creates two Docker containers (`team_a_container` and `team_b_container`), each running an Ubuntu container.
+- **Sets Up a Host Bridge Network (`br0`)**: This is a network bridge on the host machine that connects the containers to the host network.
+- **Creates Virtual Ethernet Pairs**: Virtual Ethernet devices (`veth1`, `veth2`) are created to bridge the Docker containers to the host network.
+- **Attaches veth Pairs to Containers**: The veth interfaces are moved into the container namespaces to link them with the host bridge.
+- **Assigns Dynamic IPs**: The script retrieves Docker-assigned IP addresses for the containers using `docker inspect`.
+- **Configures `iptables`**: The script configures `iptables` to ensure Team A can communicate with Team B, but Team B cannot communicate with Team A (one-way communication).
+- **Tests Connectivity**: Finally, it runs ping or curl tests to ensure the network isolation and communication restrictions are working as expected.
+
+---
+
+## **Testing the Setup**
+
+After running the script, the following tests are conducted:
+
+- **Team A Ping Test**: The script pings Team B from Team A.
+- **Team B Ping Test**: The script attempts to ping Team A from Team B, which should fail due to the `iptables` rule that blocks Team B from accessing Team A.
+
+If everything is configured correctly:
+
+- Team A will be able to ping Team B (`ping` test from Team A to Team B will succeed).
+- Team B will NOT be able to ping Team A (`ping` test from Team B to Team A will fail).
+
+### **Note:**
+- **Team A to Team B Ping**: Will succeed, as `iptables` allows it.
+- **Team B to Team A Ping**: Will fail, as `iptables` blocks Team B from reaching Team A.
+
+---
+
+## **Customization**
+
+- **Network Isolation**: You can modify the `iptables` rules to change the communication behavior between the containers. For instance, you could allow two-way communication or block specific ports.
+- **Dynamic IP Addresses**: The script dynamically retrieves the IP addresses assigned by Docker, so no changes are needed if IPs change upon restarting the containers.
+  
+You can also customize the IP ranges, container names, or network settings by adjusting the script and Dockerfile.
+
+---
+
+## **Troubleshooting**
+
+- **Docker Network Issues**: Ensure Docker is running and configured properly. You can check Docker network status using:
+  ```bash
+  docker network ls
+  ```
+
+- **Permissions**: If you encounter permissions issues, ensure the script is run with `sudo` or as the root user.
+
+---
+
+## **Conclusion**
+
+This task demonstrates how to isolate Docker containers into separate network namespaces and use `iptables` to enforce communication restrictions. By automating the setup with a script, we make it easier for all steps to be executed in an instance of time. For more updates collaborations will be welcomed.
+
+---
+
