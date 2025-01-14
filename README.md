@@ -1,6 +1,6 @@
 Take a look on this **readme** file that explains the process, setup, and usage of the script and Docker containers for this task.
 # *Group members for exercise 3*  
--*Nafisatou Hamadou*  
+-*Nafisatou  Hamadou*  
 -*Louisa Mbiti*  
 -*Nyengka Prosper*  
 ---
