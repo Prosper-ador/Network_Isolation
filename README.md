@@ -78,12 +78,12 @@ Once the Docker images are built, you can run the setup script to configure the 
 
 1. Make sure the script is executable:
    ```bash
-   chmod +x setup_isolated_network.sh
+   chmod +x net.sh
    ```
 
 2. Run the script with `sudo`:
    ```bash
-   sudo ./setup_isolated_network.sh
+   sudo ./net.sh
    ```
 
 ### **What the Script Does:**
